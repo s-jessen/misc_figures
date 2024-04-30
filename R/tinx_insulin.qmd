@@ -1,0 +1,48 @@
+---
+title: "insulin"
+output: html_document
+date: "2023-01-11"
+---
+```{r, message=FALSE, error=FALSE}
+
+source(here::here("R/libraries.R"))
+source(here::here("R/functions.R"))
+
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+df <- read_xlsx(here::here('data-raw/tinx_insulin.xlsx')) %>% 
+    dplyr::mutate(time = factor(time, levels = c("0", "30", "60", "90", "120", "pre", "ex")))
+```
+
+```{r}
+ggplot(df, aes(x = time, y = ins))+
+    stat_summary(aes(y = ins, group = id), fun = "mean", geom = "line", size = 0.5, na.rm = TRUE, show.legend = FALSE, alpha = 0.4, color = "gray")+
+    stat_summary(aes(y = ins, group = group), fun = "mean", geom = "line", size = 1, na.rm = TRUE, show.legend = FALSE, alpha = 1, color = "red")+
+    theme(
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
+        panel.grid.minor=element_blank(),
+        panel.grid.major = element_blank(),
+        plot.background = element_rect(fill = "white"),
+        axis.line = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+        axis.ticks = element_line(linewidth = 0.1),
+        axis.title = element_text(size = 6, family="Source Sans Pro"),
+        axis.title.x = element_text(size = 6, family="Source Sans Pro"),
+        axis.title.y = element_text(size = 6, family="Source Sans Pro"),
+        text = element_text(size = 8, family="Source Sans Pro"),
+        legend.title = element_blank(),
+        legend.key = element_blank(),
+        strip.background = element_blank()
+    )+
+    labs(y = "Insulin (pmol/L)", x = "Time")+
+    facet_grid(~day, scales = "free",
+               labeller = as_labeller(c(
+                   "exercise"="Exercise",
+                   "clamp"="Clamp")))
+
+ggsave(here::here('data/tinx_insulin.svg'), width = 200, height = 50, units = "mm")
+```
+
