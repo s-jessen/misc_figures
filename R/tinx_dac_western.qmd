@@ -1,0 +1,364 @@
+---
+title: "insulin"
+output: html_document
+date: "2023-01-11"
+---
+```{r, message=FALSE, error=FALSE}
+
+source(here::here("R/libraries.R"))
+source(here::here("R/functions.R"))
+
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+df_blood <- read_xlsx(here::here('data-raw/tinx_dac_blood_results.xlsx')) %>% 
+    dplyr::mutate(time = factor(time, levels = c("tte", "r1", "r2", "r3", "r5", "r10"))) %>% 
+    dplyr::mutate(glucose_exchange_adj = (a_glu - v_glu) * adj_blood_flow)
+
+df_western <- read_xlsx(here::here('data-raw/tinx_dac_wb_results.xlsx')) %>% 
+    dplyr::mutate(time = factor(time, levels = c("rest", "ex"))) %>% 
+    dplyr::mutate(ratio_reps1p_reps = reps1_p/reps1) %>% 
+    dplyr::group_by(id) %>% 
+    dplyr::mutate(ratio_increase = ratio_reps1p_reps[time == "ex"] - ratio_reps1p_reps[time == "rest"]) %>% 
+    dplyr::ungroup()
+
+df_western_long <- df_western %>% 
+    tidyr::pivot_longer(
+    cols = c(reps1, reps1_p, ratio_reps1p_reps, ratio_increase), 
+    names_to = "protein",        
+    values_to = "intensity"           
+  )
+        
+```
+
+
+Blood flow
+```{r}
+ggplot(df_blood, aes (x = time))+
+    stat_summary(aes(y = adj_blood_flow, group = id), fun = "mean", geom = "line", size = 0.5, na.rm = TRUE, show.legend = FALSE, alpha = 0.4, color = "gray")+
+    stat_summary(aes(y = adj_blood_flow, group = group), fun = "mean", geom = "line", size = 1, na.rm = TRUE, show.legend = FALSE, alpha = 1, color = "red")+
+    theme(
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
+        panel.grid.minor=element_blank(),
+        panel.grid.major = element_blank(),
+        plot.background = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+        axis.ticks = element_line(linewidth = 0.1),
+        axis.title = element_text(size = 6, family="Source Sans Pro"),
+        axis.title.x = element_text(size = 6, family="Source Sans Pro"),
+        axis.title.y = element_text(size = 6, family="Source Sans Pro"),
+        text = element_text(size = 8, family="Source Sans Pro"),
+        legend.title = element_blank(),
+        legend.key = element_blank(),
+        strip.background = element_blank()
+    )+
+    scale_x_discrete(labels = c(tte = "Exh.", r1 = "REC 1", r2 = "REC2", r3 = "REC3", r5 = "REC5", r10 = "REC10"))+
+    labs(y = "Blood flow (L/min/kg thigh lean mass)", x = "Time")
+
+ggsave(here::here('data/tinx/tinx_dac_adj_blood_flow.svg'), width = 65, height = 55, units = "mm")
+```
+
+Glucose
+```{r}
+ggplot(df_blood, aes (x = time))+
+    stat_summary(aes(y = a_glu, group = id), fun = "mean", geom = "line", size = 0.5, na.rm = TRUE, alpha = 0.25, show.legend = FALSE, color = "red")+
+    stat_summary(aes(y = a_glu, group = group), fun = "mean", geom = "line", size = 1, na.rm = TRUE, show.legend = FALSE, alpha = 1, color = "red")+
+    stat_summary(aes(y = v_glu, group = id), fun = "mean", geom = "line", size = 0.5, na.rm = TRUE, alpha = 0.25, show.legend = FALSE, color = "blue")+
+    stat_summary(aes(y = v_glu, group = group), fun = "mean", geom = "line", size = 1, na.rm = TRUE, show.legend = FALSE, alpha = 1, color = "blue")+
+    theme(
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
+        panel.grid.minor=element_blank(),
+        panel.grid.major = element_blank(),
+        plot.background = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+        axis.ticks = element_line(linewidth = 0.1),
+        axis.title = element_text(size = 6, family="Source Sans Pro"),
+        axis.title.x = element_text(size = 6, family="Source Sans Pro"),
+        axis.title.y = element_text(size = 6, family="Source Sans Pro"),
+        text = element_text(size = 8, family="Source Sans Pro"),
+        legend.title = element_blank(),
+        legend.key = element_blank(),
+        strip.background = element_blank()
+    )+
+    scale_x_discrete(labels = c(tte = "Exh.", r1 = "REC 1", r2 = "REC2", r3 = "REC3", r5 = "REC5", r10 = "REC10"))+
+    labs(y = "Glucose (mmol/L)", x = "Time")
+
+ggsave(here::here('data/tinx/tinx_dac_a-v_glucose.svg'), width = 65, height = 55, units = "mm")
+```
+
+Glucose uptake
+```{r}
+ggplot(df_blood, aes (x = time))+
+    stat_summary(aes(y = glucose_exchange_adj, group = id), fun = "mean", geom = "line", size = 0.5, na.rm = TRUE, alpha = 0.5, show.legend = FALSE, color = "gray")+
+    stat_summary(aes(y = glucose_exchange_adj, group = group), fun = "mean", geom = "line", size = 1, na.rm = TRUE, show.legend = FALSE, alpha = 1, color = "red")+
+    geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.25)+
+    theme(
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
+        panel.grid.minor=element_blank(),
+        panel.grid.major = element_blank(),
+        plot.background = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+        axis.ticks = element_line(linewidth = 0.1),
+        axis.title = element_text(size = 6, family="Source Sans Pro"),
+        axis.title.x = element_text(size = 6, family="Source Sans Pro"),
+        axis.title.y = element_text(size = 6, family="Source Sans Pro"),
+        text = element_text(size = 8, family="Source Sans Pro"),
+        legend.title = element_blank(),
+        legend.key = element_blank(),
+        strip.background = element_blank()
+    )+
+    scale_x_discrete(labels = c(tte = "Exh.", r1 = "REC 1", r2 = "REC2", r3 = "REC3", r5 = "REC5", r10 = "REC10"))+
+    labs(y = "Glucose uptake (mmol/min/kg thigh lean mass)", x = "Time")
+
+ggsave(here::here('data/tinx/tinx_dac_glucose_uptake.svg'), width = 65, height = 55, units = "mm")
+```
+
+
+WB, reps1 and reps1p at both time points
+```{r}
+df_western_long %>% 
+    dplyr::filter(protein != "ratio_reps1p_reps" & protein != "ratio_increase") %>% 
+    ggplot(aes (x = protein, y = intensity))+
+        geom_bar(stat = "summary", fun = "mean", fill = "grey", color = "black")+
+        geom_point(shape = 16, size = 1.5, alpha = 0.5, position = position_jitter(width = 0.05))+
+        geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.25)+
+        theme(
+            panel.background = element_blank(),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
+            panel.grid.minor=element_blank(),
+            panel.grid.major = element_blank(),
+            plot.background = element_blank(),
+            axis.line = element_blank(),
+            axis.text.x = element_text(),
+            axis.ticks = element_line(linewidth = 0.1),
+            axis.title = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.x = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.y = element_text(size = 6, family="Source Sans Pro"),
+            text = element_text(size = 8, family="Source Sans Pro"),
+            legend.title = element_blank(),
+            legend.key = element_blank(),
+            strip.background = element_blank()
+        )+
+        labs(y = "Intensity (a.u.)", x = "")+
+        scale_x_discrete(labels = c(reps1 = "REPS1", reps1_p = "REPS1-p"))+
+        facet_grid(~time, labeller = as_labeller(c(rest = "Rest", ex = "Exercise")))
+
+ggsave(here::here('data/tinx/tinx_dac_reps1_reps1p.svg'), width = 50, height = 50, units = "mm")
+```
+
+WB, reps1/reps1p ratio
+```{r}
+df_western_long %>% 
+    dplyr::filter(protein == "ratio_reps1p_reps") %>% 
+    ggplot(aes (x = time, y = intensity))+
+        geom_bar(stat = "summary", fun = "mean", fill = "grey", color = "black")+
+        geom_point(shape = 16, size = 1.5)+
+        geom_line(aes(group = id), alpha = 0.5)+
+        geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.25)+
+        theme(
+            panel.background = element_blank(),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
+            panel.grid.minor=element_blank(),
+            panel.grid.major = element_blank(),
+            plot.background = element_blank(),
+            axis.line = element_blank(),
+            axis.text.x = element_text(),
+            axis.ticks = element_line(linewidth = 0.1),
+            axis.title = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.x = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.y = element_text(size = 6, family="Source Sans Pro"),
+            text = element_text(size = 8, family="Source Sans Pro"),
+            legend.title = element_blank(),
+            legend.key = element_blank(),
+            strip.background = element_blank()
+        )+
+        labs(y = "Ratio (REPS1-p/REPS1)", x = "")+
+        scale_x_discrete(labels = c(rest = "Rest", ex = "Exercise"))
+
+ggsave(here::here('data/tinx/tinx_dac_reps1_reps1p_ratio.svg'), width = 35, height = 45, units = "mm")
+```
+
+WB, reps1/reps1p ratio increase
+```{r}
+df_western_long %>% 
+    dplyr::filter(protein == "ratio_increase" & time == "ex") %>% 
+    ggplot(aes (x = protein, y = intensity))+
+        geom_bar(stat = "summary", fun = "mean", fill = "grey", color = "black")+
+        geom_point(shape = 16, size = 1.5)+
+        geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.25)+
+        theme(
+            panel.background = element_blank(),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
+            panel.grid.minor=element_blank(),
+            panel.grid.major = element_blank(),
+            plot.background = element_blank(),
+            axis.line = element_blank(),
+            axis.text.x = element_text(),
+            axis.ticks = element_line(linewidth = 0.1),
+            axis.title = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.x = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.y = element_text(size = 6, family="Source Sans Pro"),
+            text = element_text(size = 8, family="Source Sans Pro"),
+            legend.title = element_blank(),
+            legend.key = element_blank(),
+            strip.background = element_blank()
+        )+
+        labs(y = "Ratio increase (Rest ratio - exercise ratio)", x = "")+
+        scale_x_discrete(labels = c(rest = "Rest", ex = "Exercise"))
+
+ggsave(here::here('data/tinx/tinx_dac_reps1_reps1p_ratio_increase.svg'), width = 25, height = 45, units = "mm")
+```
+
+
+Correlations (ratio increase)
+```{r}
+correlations <- merge(df_blood, df_western[df_western$time == "ex",], by = "id")
+
+correlations %>% 
+    ggplot(aes (x = ratio_increase, y = glucose_exchange))+
+        geom_point(shape = 16, size = 1.5)+
+        geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.25, color = "gray")+
+        geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.25, color = "gray")+
+        geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed", linewidth = 0.25, alpha = 0.5) +
+        stat_poly_eq(
+          aes(label = paste(..rr.label.., ..p.value.label.., sep = "~~~~")),
+          label.x = "center", label.y = "top", size = 2.5, 
+          formula = y ~ x, parse = TRUE
+        ) +
+        theme(
+            panel.background = element_blank(),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
+            panel.grid.minor=element_blank(),
+            panel.grid.major = element_blank(),
+            plot.background = element_blank(),
+            axis.line = element_blank(),
+            axis.text.x = element_text(),
+            axis.ticks = element_line(linewidth = 0.1),
+            axis.title = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.x = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.y = element_text(size = 6, family="Source Sans Pro"),
+            text = element_text(size = 8, family="Source Sans Pro"),
+            legend.title = element_blank(),
+            legend.key = element_blank(),
+            strip.background = element_blank()
+        )+
+        labs(x = "REPS1p/REPS1 ratio increase", y = "Glucose uptate (mmol/min")+
+        facet_wrap(~time.x, scales = "free", labeller = as_labeller(c(tte = "Exhaustion", r1 = "Recovery (1 min)", r2 = "Recovery (2 min)", r3 = "Recovery (3 min)", r5 = "Recovery (5 min)", r10 = "Recovery (10 min)")))
+```
+
+Correlations (ratio)
+```{r}
+correlations <- merge(df_blood, df_western[df_western$time == "ex",], by = "id")
+
+correlations %>% 
+    ggplot(aes (x = ratio_reps1p_reps, y = glucose_exchange))+
+        geom_point(shape = 16, size = 1.5)+
+        geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.25, color = "gray")+
+        geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.25, color = "gray")+
+        geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed", linewidth = 0.25, alpha = 0.5) +
+        stat_poly_eq(
+          aes(label = paste(..rr.label.., ..p.value.label.., sep = "~~~~")),
+          label.x = "center", label.y = "top", size = 2.5, 
+          formula = y ~ x, parse = TRUE
+        ) +
+        theme(
+            panel.background = element_blank(),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
+            panel.grid.minor=element_blank(),
+            panel.grid.major = element_blank(),
+            plot.background = element_blank(),
+            axis.line = element_blank(),
+            axis.text.x = element_text(),
+            axis.ticks = element_line(linewidth = 0.1),
+            axis.title = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.x = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.y = element_text(size = 6, family="Source Sans Pro"),
+            text = element_text(size = 8, family="Source Sans Pro"),
+            legend.title = element_blank(),
+            legend.key = element_blank(),
+            strip.background = element_blank()
+        )+
+        labs(x = "REPS1p/REPS1 ratio", y = "Glucose uptate (mmol/min")+
+        facet_wrap(~time.x, scales = "free", labeller = as_labeller(c(tte = "Exhaustion", r1 = "Recovery (1 min)", r2 = "Recovery (2 min)", r3 = "Recovery (3 min)", r5 = "Recovery (5 min)", r10 = "Recovery (10 min)")))
+```
+Correlations (ratio increase; adj)
+```{r}
+correlations <- merge(df_blood, df_western[df_western$time == "ex",], by = "id")
+
+correlations %>% 
+    ggplot(aes (x = ratio_increase, y = glucose_exchange_adj))+
+        geom_point(shape = 16, size = 1.5)+
+        geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.25, color = "gray")+
+        geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.25, color = "gray")+
+        geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed", linewidth = 0.25, alpha = 0.5) +
+        stat_poly_eq(
+          aes(label = paste(..rr.label.., ..p.value.label.., sep = "~~~~")),
+          label.x = "center", label.y = "top", size = 2.5, 
+          formula = y ~ x, parse = TRUE
+        ) +
+        theme(
+            panel.background = element_blank(),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
+            panel.grid.minor=element_blank(),
+            panel.grid.major = element_blank(),
+            plot.background = element_blank(),
+            axis.line = element_blank(),
+            axis.text.x = element_text(),
+            axis.ticks = element_line(linewidth = 0.1),
+            axis.title = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.x = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.y = element_text(size = 6, family="Source Sans Pro"),
+            text = element_text(size = 8, family="Source Sans Pro"),
+            legend.title = element_blank(),
+            legend.key = element_blank(),
+            strip.background = element_blank()
+        )+
+        labs(x = "REPS1p/REPS1 ratio increase", y = "Glucose uptate (mmol/min")+
+        facet_wrap(~time.x, scales = "free", labeller = as_labeller(c(tte = "Exhaustion", r1 = "Recovery (1 min)", r2 = "Recovery (2 min)", r3 = "Recovery (3 min)", r5 = "Recovery (5 min)", r10 = "Recovery (10 min)")))
+```
+
+Correlations (ratio; adj)
+```{r}
+correlations <- merge(df_blood, df_western[df_western$time == "ex",], by = "id")
+
+correlations %>% 
+    ggplot(aes (x = ratio_reps1p_reps, y = glucose_exchange_adj))+
+        geom_point(shape = 16, size = 2)+
+        geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.25, color = "gray")+
+        geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.25, color = "gray")+
+        geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed", linewidth = 0.25, alpha = 0.5) +
+        stat_poly_eq(
+          aes(label = paste(..rr.label.., ..p.value.label.., sep = "~~~~")),
+          label.x = "center", label.y = "top", size = 2.5, 
+          formula = y ~ x, parse = TRUE
+        ) +
+        theme(
+            panel.background = element_blank(),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
+            panel.grid.minor=element_blank(),
+            panel.grid.major = element_blank(),
+            plot.background = element_blank(),
+            axis.line = element_blank(),
+            axis.text.x = element_text(),
+            axis.ticks = element_line(linewidth = 0.1),
+            axis.title = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.x = element_text(size = 8, family="Source Sans Pro"),
+            axis.title.y = element_text(size = 8, family="Source Sans Pro"),
+            text = element_text(size = 8, family="Source Sans Pro"),
+            legend.title = element_blank(),
+            legend.key = element_blank(),
+            strip.background = element_blank(),
+            aspect.ratio = 1
+        )+
+        labs(x = "REPS1p/REPS1 ratio", y = "Glucose uptake (mmol/min/kg thigh lean mass)")+
+        facet_wrap(~time.x, scales = "free", labeller = as_labeller(c(tte = "Exhaustion", r1 = "Recovery (1 min)", r2 = "Recovery (2 min)", r3 = "Recovery (3 min)", r5 = "Recovery (5 min)", r10 = "Recovery (10 min)")))
+
+ggsave(here::here('data/tinx/tinx_dac_correlations.svg'), width = 150, height = 150, units = "mm")
+```
