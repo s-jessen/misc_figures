@@ -55,7 +55,7 @@ ggplot(df_blood, aes (x = time))+
         legend.key = element_blank(),
         strip.background = element_blank()
     )+
-    scale_x_discrete(labels = c(tte = "Exh.", r1 = "REC 1", r2 = "REC2", r3 = "REC3", r5 = "REC5", r10 = "REC10"))+
+    scale_x_discrete(labels = c(tte = "Exh.", r1 = "REC1", r2 = "REC2", r3 = "REC3", r5 = "REC5", r10 = "REC10"))+
     labs(y = "Blood flow (L/min/kg thigh lean mass)", x = "Time")
 
 ggsave(here::here('data/tinx/tinx_dac_adj_blood_flow.svg'), width = 65, height = 55, units = "mm")
@@ -85,7 +85,7 @@ ggplot(df_blood, aes (x = time))+
         legend.key = element_blank(),
         strip.background = element_blank()
     )+
-    scale_x_discrete(labels = c(tte = "Exh.", r1 = "REC 1", r2 = "REC2", r3 = "REC3", r5 = "REC5", r10 = "REC10"))+
+    scale_x_discrete(labels = c(tte = "Exh.", r1 = "REC1", r2 = "REC2", r3 = "REC3", r5 = "REC5", r10 = "REC10"))+
     labs(y = "Glucose (mmol/L)", x = "Time")
 
 ggsave(here::here('data/tinx/tinx_dac_a-v_glucose.svg'), width = 65, height = 55, units = "mm")
@@ -114,7 +114,7 @@ ggplot(df_blood, aes (x = time))+
         legend.key = element_blank(),
         strip.background = element_blank()
     )+
-    scale_x_discrete(labels = c(tte = "Exh.", r1 = "REC 1", r2 = "REC2", r3 = "REC3", r5 = "REC5", r10 = "REC10"))+
+    scale_x_discrete(labels = c(tte = "Exh.", r1 = "REC1", r2 = "REC2", r3 = "REC3", r5 = "REC5", r10 = "REC10"))+
     labs(y = "Glucose uptake (mmol/min/kg thigh lean mass)", x = "Time")
 
 ggsave(here::here('data/tinx/tinx_dac_glucose_uptake.svg'), width = 65, height = 55, units = "mm")
@@ -249,7 +249,7 @@ correlations %>%
             legend.key = element_blank(),
             strip.background = element_blank()
         )+
-        labs(x = "REPS1p/REPS1 ratio increase", y = "Glucose uptate (mmol/min")+
+        labs(x = "REPS1p/REPS1 ratio increase", y = "Glucose uptake (mmol/min)")+
         facet_wrap(~time.x, scales = "free", labeller = as_labeller(c(tte = "Exhaustion", r1 = "Recovery (1 min)", r2 = "Recovery (2 min)", r3 = "Recovery (3 min)", r5 = "Recovery (5 min)", r10 = "Recovery (10 min)")))
 ```
 
@@ -285,9 +285,10 @@ correlations %>%
             legend.key = element_blank(),
             strip.background = element_blank()
         )+
-        labs(x = "REPS1p/REPS1 ratio", y = "Glucose uptate (mmol/min")+
+        labs(x = "REPS1p/REPS1 ratio", y = "Glucose uptake (mmol/min)")+
         facet_wrap(~time.x, scales = "free", labeller = as_labeller(c(tte = "Exhaustion", r1 = "Recovery (1 min)", r2 = "Recovery (2 min)", r3 = "Recovery (3 min)", r5 = "Recovery (5 min)", r10 = "Recovery (10 min)")))
 ```
+
 Correlations (ratio increase; adj)
 ```{r}
 correlations <- merge(df_blood, df_western[df_western$time == "ex",], by = "id")
@@ -320,7 +321,7 @@ correlations %>%
             legend.key = element_blank(),
             strip.background = element_blank()
         )+
-        labs(x = "REPS1p/REPS1 ratio increase", y = "Glucose uptate (mmol/min")+
+        labs(x = "REPS1p/REPS1 ratio increase", y = "Glucose uptake (mmol/min)")+
         facet_wrap(~time.x, scales = "free", labeller = as_labeller(c(tte = "Exhaustion", r1 = "Recovery (1 min)", r2 = "Recovery (2 min)", r3 = "Recovery (3 min)", r5 = "Recovery (5 min)", r10 = "Recovery (10 min)")))
 ```
 
@@ -361,4 +362,47 @@ correlations %>%
         facet_wrap(~time.x, scales = "free", labeller = as_labeller(c(tte = "Exhaustion", r1 = "Recovery (1 min)", r2 = "Recovery (2 min)", r3 = "Recovery (3 min)", r5 = "Recovery (5 min)", r10 = "Recovery (10 min)")))
 
 ggsave(here::here('data/tinx/tinx_dac_correlations.svg'), width = 150, height = 150, units = "mm")
+```
+
+Correlations (ratio increase; adj; averaged time)
+```{r}
+blood <- df_blood %>% 
+    dplyr::filter(time == "r1" | time == "r2" | time == "r3") %>% 
+    dplyr::group_by(id) %>% 
+    dplyr::summarize(glucose_exchange_adj = mean(glucose_exchange_adj, na.rm = T)) %>% 
+    dplyr::ungroup()
+
+correlations <- merge(blood, df_western[df_western$time == "ex",], by = "id")
+
+correlations %>% 
+    ggplot(aes (x = ratio_reps1p_reps, y = glucose_exchange_adj))+
+        geom_point(shape = 16, size = 1.5)+
+        geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.25, color = "gray")+
+        geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.25, color = "gray")+
+        geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed", linewidth = 0.25, alpha = 0.5) +
+        stat_poly_eq(
+          aes(label = paste(..rr.label.., ..p.value.label.., sep = "~~~~")),
+          label.x = "center", label.y = "top", size = 2.5, 
+          formula = y ~ x, parse = TRUE
+        ) +
+        theme(
+            panel.background = element_blank(),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
+            panel.grid.minor=element_blank(),
+            panel.grid.major = element_blank(),
+            plot.background = element_rect(fill = "white"),
+            axis.line = element_blank(),
+            axis.text.x = element_text(),
+            axis.ticks = element_line(linewidth = 0.1),
+            axis.title = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.x = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.y = element_text(size = 6, family="Source Sans Pro"),
+            text = element_text(size = 8, family="Source Sans Pro"),
+            legend.title = element_blank(),
+            legend.key = element_blank(),
+            strip.background = element_blank()
+        )+
+        labs(x = "REPS1p/REPS1 ratio increase", y = "Glucose uptake, Exh. - REC3 (mmol/min/kg thigh lean mass)")
+
+ggsave(here::here('data/tinx/tinx_dac_tte_to_r3_correlations.png'), width = 75, height = 75, units = "mm", dpi = 600)
 ```
