@@ -1,0 +1,79 @@
+---
+title: "insulin"
+output: html_document
+date: "2023-01-11"
+---
+```{r, message=FALSE, error=FALSE}
+
+source(here::here("R/libraries.R"))
+source(here::here("R/functions.R"))
+
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+df <- read_xlsx(here::here('data-raw/tinx_cat.xlsx')) %>% 
+    dplyr::mutate(time = factor(time, levels = c("0", "30", "60", "90", "120", "pre", "post")))
+```
+
+Adrenaline
+```{r}
+ggplot(df, aes(x = time, y = epi))+
+    stat_summary(aes(y = epi, group = id), fun = "mean", geom = "line", size = 0.5, na.rm = TRUE, show.legend = FALSE, alpha = 0.4, color = "gray")+
+    stat_summary(aes(y = epi, group = 1), fun = "mean", geom = "line", size = 1, na.rm = TRUE, show.legend = FALSE, alpha = 1, color = "red")+
+    theme(
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
+        panel.grid.minor=element_blank(),
+        panel.grid.major = element_blank(),
+        plot.background = element_rect(fill = "white"),
+        axis.line = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+        axis.ticks = element_line(linewidth = 0.1),
+        axis.title = element_text(size = 6, family="Source Sans Pro"),
+        axis.title.x = element_text(size = 6, family="Source Sans Pro"),
+        axis.title.y = element_text(size = 6, family="Source Sans Pro"),
+        text = element_text(size = 8, family="Source Sans Pro"),
+        legend.title = element_blank(),
+        legend.key = element_blank(),
+        strip.background = element_blank()
+    )+
+    labs(y = "Epinephrine (nmol/L)", x = "Time")+
+    facet_grid(~day, scales = "free",
+               labeller = as_labeller(c(
+                   "exercise"="Exercise",
+                   "clamp"="Clamp")))
+
+ggsave(here::here('data/tinx/tinx_epinephrine.png'), width = 200, height = 50, dpi = 300, units = "mm")
+```
+
+Nordrenaline
+```{r}
+ggplot(df, aes(x = time, y = nor))+
+    stat_summary(aes(y = nor, group = id), fun = "mean", geom = "line", size = 0.5, na.rm = TRUE, show.legend = FALSE, alpha = 0.4, color = "gray")+
+    stat_summary(aes(y = nor, group = 1), fun = "mean", geom = "line", size = 1, na.rm = TRUE, show.legend = FALSE, alpha = 1, color = "red")+
+    theme(
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
+        panel.grid.minor=element_blank(),
+        panel.grid.major = element_blank(),
+        plot.background = element_rect(fill = "white"),
+        axis.line = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+        axis.ticks = element_line(linewidth = 0.1),
+        axis.title = element_text(size = 6, family="Source Sans Pro"),
+        axis.title.x = element_text(size = 6, family="Source Sans Pro"),
+        axis.title.y = element_text(size = 6, family="Source Sans Pro"),
+        text = element_text(size = 8, family="Source Sans Pro"),
+        legend.title = element_blank(),
+        legend.key = element_blank(),
+        strip.background = element_blank()
+    )+
+    labs(y = "Norepinephrine (nmol/L)", x = "Time")+
+    facet_grid(~day, scales = "free",
+               labeller = as_labeller(c(
+                   "exercise"="Exercise",
+                   "clamp"="Clamp")))
+
+ggsave(here::here('data/tinx/tinx_norepinephrine.png'), width = 200, height = 50, dpi = 300, units = "mm")
+```
