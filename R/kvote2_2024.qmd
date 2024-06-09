@@ -1,0 +1,27 @@
+---
+title: "kvote"
+output: html_document
+date: "2023-01-11"
+---
+```{r, message=FALSE, error=FALSE}
+
+source(here::here("R/libraries.R"))
+source(here::here("R/functions.R"))
+
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+df <- read_xlsx(here::here('data-raw/combined_scores.xlsx')) %>% 
+    tidyr::pivot_longer(cols = c("s1", "s2", "s3"),
+                        names_to = "question",
+                        values_to = "score"
+                        )
+
+```
+
+cv's
+```{r}
+
+```
+
