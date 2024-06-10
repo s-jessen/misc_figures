@@ -20,8 +20,48 @@ df <- read_xlsx(here::here('data-raw/combined_scores.xlsx')) %>%
 
 ```
 
-cv's
-```{r}
 
+```{r}
+library(tidytext)
+
+# Assuming df is your original dataframe
+summarized <- df %>% 
+    group_by(id, question) %>% 
+    summarize(
+        mean = mean(score),
+        sd = sd(score),
+        cv = mean / sd * 100
+    ) %>% 
+    ungroup() %>% 
+    dplyr::mutate(cv = ifelse(is.infinite(cv), 0, cv))
+```
+
+```{r}
+# Plot using reorder_within from tidytext
+ggplot(summarized, aes(x = tidytext::reorder_within(id, cv, question), y = cv)) +
+    geom_bar(stat = "identity") +
+    theme(
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)
+    ) +
+    tidytext::scale_x_reordered() +
+    facet_grid(~question, scales = "free_x")
+
+ggsave(here::here('data/figures/kvote2/cvs.png'), width = 300, units = "mm")
+```
+Individual scores
+```{r}
+ggplot(df, aes(x = question, y = score, fill = assessor))+
+    geom_bar(stat = "identity", position = position_dodge(width = 1))+
+    facet_wrap(~id)
+
+ggsave(here::here('data/figures/kvote2/scores.pdf'), width = 400, height = 300, units = "mm")
+```
+
+
+Assessor averages
+```{r}
+ggplot(df, aes(x = assessor, y = score, fill = assessor))+
+    geom_violin()+
+    geom_point(position = position_jitter(width = 0.1))
 ```
 
