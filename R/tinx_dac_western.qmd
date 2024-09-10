@@ -3,7 +3,7 @@ title: "insulin"
 output: html_document
 date: "2023-01-11"
 ---
-```{r, message=FALSE, error=FALSE}
+```{r, message=FALSE, error=FALSE, include = FALSE}
 
 source(here::here("R/libraries.R"))
 source(here::here("R/functions.R"))
@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 
 ```{r}
 df_blood <- read_xlsx(here::here('data-raw/tinx_dac_blood_results.xlsx')) %>% 
-    dplyr::mutate(time = factor(time, levels = c("baseline", "exh", "r1", "r2", "r3", "r5", "r10"))) %>% 
+    dplyr::mutate(time = factor(time, levels = c("baseline", "x1", "x2", "exh", "r1", "r2", "r3", "r5", "r10"))) %>% 
     dplyr::mutate(glu_increase = glucose_exchange_adj - glucose_exchange_adj[time == "baseline"])
 
 df_western <- read_xlsx(here::here('data-raw/tinx_dac_wb_results.xlsx')) %>% 
@@ -33,7 +33,7 @@ Blood flow
 ```{r}
 ggplot(df_blood, aes (x = time))+
     stat_summary(aes(y = adj_blood_flow, group = id), fun = "mean", geom = "line", size = 0.5, na.rm = TRUE, show.legend = FALSE, alpha = 0.4, color = "gray")+
-    stat_summary(aes(y = adj_blood_flow, group = group), fun = "mean", geom = "line", size = 1, na.rm = TRUE, show.legend = FALSE, alpha = 1, color = "red")+
+    stat_summary(aes(y = adj_blood_flow, group = 1), fun = "mean", geom = "line", size = 1, na.rm = TRUE, show.legend = FALSE, alpha = 1, color = "red")+
     theme(
         panel.background = element_blank(),
         panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
@@ -61,9 +61,9 @@ Glucose
 ```{r}
 ggplot(df_blood, aes (x = time))+
     stat_summary(aes(y = a_glu, group = id), fun = "mean", geom = "line", size = 0.5, na.rm = TRUE, alpha = 0.25, show.legend = FALSE, color = "red")+
-    stat_summary(aes(y = a_glu, group = group), fun = "mean", geom = "line", size = 1, na.rm = TRUE, show.legend = FALSE, alpha = 1, color = "red")+
+    stat_summary(aes(y = a_glu, group = 1), fun = "mean", geom = "line", size = 1, na.rm = TRUE, show.legend = FALSE, alpha = 1, color = "red")+
     stat_summary(aes(y = v_glu, group = id), fun = "mean", geom = "line", size = 0.5, na.rm = TRUE, alpha = 0.25, show.legend = FALSE, color = "blue")+
-    stat_summary(aes(y = v_glu, group = group), fun = "mean", geom = "line", size = 1, na.rm = TRUE, show.legend = FALSE, alpha = 1, color = "blue")+
+    stat_summary(aes(y = v_glu, group = 1), fun = "mean", geom = "line", size = 1, na.rm = TRUE, show.legend = FALSE, alpha = 1, color = "blue")+
     theme(
         panel.background = element_blank(),
         panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
@@ -90,10 +90,10 @@ ggsave(here::here('data/tinx/tinx_dac_a-v_glucose.svg'), width = 65, height = 55
 Glucose uptake
 ```{r}
 df_blood %>% 
-    dplyr::filter(time != "baseline") %>% 
+    #dplyr::filter(time != "baseline") %>% 
     ggplot(aes (x = time))+
         stat_summary(aes(y = glucose_exchange_adj, group = id), fun = "mean", geom = "line", size = 0.5, na.rm = TRUE, alpha = 0.5, show.legend = FALSE, color = "gray")+
-        stat_summary(aes(y = glucose_exchange_adj, group = group), fun = "mean", geom = "line", size = 1, na.rm = TRUE, show.legend = FALSE, alpha = 1, color = "red")+
+        stat_summary(aes(y = glucose_exchange_adj, group = 1), fun = "mean", geom = "line", size = 1, na.rm = TRUE, show.legend = FALSE, alpha = 1, color = "red")+
         geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.25)+
         theme(
             panel.background = element_blank(),
