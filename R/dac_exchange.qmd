@@ -14,37 +14,42 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 ```{r}
 df_day_a <- read_xlsx(here::here('data-raw/dac_exchange_day_a.xlsx'))
 df_day_b <- read_xlsx(here::here('data-raw/dac_exchange_day_b.xlsx'))
-
 ```
 
-wrangle
+Wrangle and calculations
 ```{r}
 df_long_day_a <- df_day_a %>%
+  # Pivot longer to include flow, Glu_a, Glu_v, Hct_a, and Hct_v columns
   tidyr::pivot_longer(
-    cols = starts_with("flow_") | starts_with("Glu_a_") | starts_with("Glu_v_"),
+    cols = starts_with("flow_") | starts_with("Glu_a_") | starts_with("Glu_v_") | starts_with("Hct_a_") | starts_with("Hct_v_"),
     names_to = c("measurement", "time"),
-    names_pattern = "(flow|Glu_a|Glu_v)_(.*)",
+    names_pattern = "(flow|Glu_a|Glu_v|Hct_a|Hct_v)_(.*)",
     values_to = "value"
   ) %>%
+  # Pivot wider to create separate columns for each measurement (flow, Glu_a, Glu_v, Hct_a, Hct_v)
   tidyr::pivot_wider(
     names_from = "measurement", 
     values_from = "value",
     names_prefix = ""
   ) %>%
+  # Add the day column
   dplyr::mutate(day = "a")
 
 df_long_day_b <- df_day_b %>%
+  # Pivot longer to include flow, Glu_a, Glu_v, Hct_a, and Hct_v columns
   tidyr::pivot_longer(
-    cols = starts_with("flow_") | starts_with("Glu_a_") | starts_with("Glu_v_"),
+    cols = starts_with("flow_") | starts_with("Glu_a_") | starts_with("Glu_v_") | starts_with("Hct_a_") | starts_with("Hct_v_"),
     names_to = c("measurement", "time"),
-    names_pattern = "(flow|Glu_a|Glu_v)_(.*)",
+    names_pattern = "(flow|Glu_a|Glu_v|Hct_a|Hct_v)_(.*)",
     values_to = "value"
   ) %>%
+  # Pivot wider to create separate columns for each measurement (flow, Glu_a, Glu_v, Hct_a, Hct_v)
   tidyr::pivot_wider(
     names_from = "measurement", 
     values_from = "value",
     names_prefix = ""
   ) %>%
+  # Add the day column
   dplyr::mutate(day = "b")
 
 #Merge and set time levels
@@ -73,19 +78,24 @@ df_long <- rbind(df_long_day_a, df_long_day_b) %>%
         "R10"
     ))) %>% 
     #Calc exchange
-    dplyr::mutate(av_diff = Glu_a - Glu_v) %>% 
-    dplyr::mutate(glu_exchange = av_diff * flow) %>% 
+    dplyr::mutate(Hct_a = Hct_a/100,
+                  Hct_v = Hct_v/100) %>% 
+    dplyr::mutate(glu_exchange = flow * (Glu_a - Glu_v)) %>% 
+    dplyr::mutate(glu_exchange_adjusted_for_hb = flow*(Glu_a * (1 - Hct_a) - Glu_v * (1 - Hct_v))) %>% 
+    dplyr::mutate(glu_exchange_adjusted_for_lean = glu_exchange / thigh_lean) %>% 
+    dplyr::mutate(glu_exchange_adjusted_for_lean_and_hb = glu_exchange_adjusted_for_hb / thigh_lean) %>% 
     dplyr::filter(trial == 0)
 
 #Calculate means for plotting
 df_mean <- df_long %>%
   dplyr::group_by(day, time) %>%
   dplyr::summarize(mean_flow = mean(flow, na.rm = T),
-                   mean_glu_exchange = mean(glu_exchange, na.rm = T)) %>%
+                   mean_glu_exchange = mean(glu_exchange, na.rm = T),
+                   mean_glu_exchange_adjusted_for_hb = mean(glu_exchange_adjusted_for_hb, na.rm = T)) %>%
   dplyr::ungroup()
 
-```
 
+```
 
 Blood flow
 ```{r}
@@ -119,7 +129,7 @@ df_long %>%
 
     
 
-ggsave(here::here('data/dac/blood_flow.svg'), width = 150, height = 60, units = "mm")
+#ggsave(here::here('data/dac/blood_flow.svg'), width = 150, height = 60, units = "mm")
 ```
 
 Glucose exchange
@@ -147,7 +157,7 @@ df_long %>%
             strip.background = element_blank()
         )+
         scale_x_discrete(labels = c(exh = "Exh.", r1 = "REC1", r2 = "REC2", r3 = "REC3", r5 = "REC5", r10 = "REC10"))+
-        labs(y = "Glucose exchange (mmol/min)", x = "Time")+
+        labs(y = "Glucose exchange (mmol/min/kg thigh lean mass)", x = "Time")+
         facet_grid(~day, 
                    scale = "free_x",
                    labeller = as_labeller(c(a = "Day A",
@@ -155,9 +165,8 @@ df_long %>%
     annotate("text", x = Inf, y = Inf, label = "Uptake", hjust = 1.1, vjust = 2, size = 3, color = "black")+
     annotate("text", x = Inf, y = -Inf, label = "Release", hjust = 1.1, vjust = -1, size = 3, color = "black")
 
-ggsave(here::here('data/dac/glucose_exchange.svg'), width = 150, height = 60, units = "mm")
+#ggsave(here::here('data/dac/glucose_exchange.svg'), width = 150, height = 60, units = "mm")
 ```
-
 
 TINx
 ```{r}
@@ -173,7 +182,8 @@ mean_dac <- df_long %>%
         ) %>% 
     dplyr::group_by(day, time) %>%
   dplyr::summarize(mean_flow = mean(flow, na.rm = T),
-                   mean_glu_exchange = mean(glu_exchange, na.rm = T)) %>%
+                   mean_glu_exchange = mean(glu_exchange, na.rm = T),
+                   mean_glu_exchange_adjusted = mean(glu_exchange_adjusted, na.rm = T)) %>%
   dplyr::ungroup()
 
 #Plot
@@ -188,8 +198,8 @@ df_long %>%
         (id == 8 & day ==  "b")
         ) %>% 
     ggplot(aes(x = time))+
-    geom_path(aes(y = glu_exchange, group = id), color = "gray", alpha = 0.5)+
-    geom_path(data = mean_dac, aes(x = time, y = mean_glu_exchange, group = 1), color = "red", size = 1) +
+    geom_path(aes(y = glu_exchange_adjusted, group = id), color = "gray", alpha = 0.5)+
+    geom_path(data = mean_dac, aes(x = time, y = mean_glu_exchange_adjusted, group = 1), color = "red", size = 1) +
     geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.25)+
         theme(
             panel.background = element_blank(),
@@ -209,7 +219,7 @@ df_long %>%
             strip.background = element_blank()
         )+
         scale_x_discrete(labels = c(exh = "Exh.", r1 = "REC1", r2 = "REC2", r3 = "REC3", r5 = "REC5", r10 = "REC10"))+
-        labs(y = "Glucose exchange (mmol/min)", x = "Time")+
+        labs(y = "Glucose exchange (mmol/min/thigh lean mass)", x = "Time")+
         facet_grid(~day, 
                    scale = "free_x",
                    labeller = as_labeller(c(a = "Day A",
@@ -217,7 +227,156 @@ df_long %>%
     annotate("text", x = Inf, y = Inf, label = "Uptake", hjust = 1.1, vjust = 2, size = 3, color = "black")+
     annotate("text", x = Inf, y = -Inf, label = "Release", hjust = 1.1, vjust = -1, size = 3, color = "black")
 
-ggsave(here::here('data/dac/glucose_exchange_only_tinx_samples.svg'), width = 150, height = 60, units = "mm")
+#ggsave(here::here('data/dac/glucose_exchange_only_tinx_samples.svg'), width = 150, height = 60, units = "mm")
 
+```
+
+TINx
+```{r}
+tin_x <- df_long %>%
+    dplyr::filter(trial == 0) %>% 
+    dplyr::filter(
+        (id == 1 & day == "b") |
+        (id == 2 & day ==  "a") |
+        (id == 3 & day ==  "b") |
+        (id == 5 & day ==  "b") |
+        (id == 6 & day ==  "a") |
+        (id == 8 & day ==  "b")
+        ) %>% 
+    dplyr::filter(time == "T0" |
+                      time == "TTE" |
+                      time == "R1" |
+                      time == "R2" |
+                      time == "R3" |
+                      time == "R5" |
+                      time == "R10")
+
+write_xlsx(tin_x, here::here('data/tin_x.xlsx'))
+```
+
+```{r}
+df_tinx <- read_xlsx(here::here('data/tin_x_modified_v2.xlsx')) %>% 
+    dplyr::mutate(time = factor(time, levels = c(
+        "T0",
+        "TTE",
+        "R1",
+        "R2",
+        "R3",
+        "R5",
+        "R10"
+    )))
+    
+
+#Mean TINx
+mean_tinx <- df_tinx %>% 
+  dplyr::group_by(time) %>%
+  dplyr::summarize(mean_flow = mean(flow, na.rm = T),
+                   mean_glu_exchange = mean(glu_exchange, na.rm = T),
+                   mean_glu_exchange_adjusted_for_hb = mean(glu_exchange_adjusted_for_hb, na.rm = T),
+                   mean_glu_exchange_adjusted_for_lean = mean(glu_exchange_adjusted_for_lean, na.rm = T),
+                   n = n(),  # Sample size
+                   se_glu_exchange = sd(glu_exchange, na.rm = TRUE) / sqrt(n),
+                   se_glu_exchange_adjusted_for_hb = sd(glu_exchange_adjusted_for_hb, na.rm = TRUE) / sqrt(n),
+                   se_glu_exchange_adjusted_for_lean = sd(glu_exchange_adjusted_for_lean, na.rm = TRUE) / sqrt(n)) %>%   # Standard error) %>%
+  dplyr::ungroup()
+
+
+```
+
+Adjusted
+```{r}
+tin_x %>%
+    ggplot(aes(x = time))+
+    geom_path(data = mean_tinx,
+              aes(x = time,
+                  y = mean_glu_exchange,
+                  group = 1),
+              color = "red",
+              size = 1) +
+    geom_path(data = df_tinx,
+              aes(x = time,
+                  y = glu_exchange,
+                  group = id),
+              color = "gray",
+              size = 0.25) +
+    geom_errorbar(data = mean_tinx, 
+                  aes(x = time, 
+                      ymin = mean_glu_exchange, 
+                      ymax = mean_glu_exchange + se_glu_exchange), 
+                  width = 0,
+                  color = "black", 
+                  alpha = 0.5) +
+    geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.25)+
+        theme(
+            panel.background = element_rect(fill = "white"),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
+            panel.grid.minor=element_blank(),
+            panel.grid.major = element_blank(),
+            plot.background = element_rect(fill = "white"),
+            axis.line = element_blank(),
+            axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+            axis.ticks = element_line(linewidth = 0.1),
+            axis.title = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.x = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.y = element_text(size = 6, family="Source Sans Pro"),
+            text = element_text(size = 8, family="Source Sans Pro"),
+            legend.title = element_blank(),
+            legend.key = element_blank(),
+            strip.background = element_blank()
+        )+
+        #scale_x_discrete(labels = c(exh = "Exh.", r1 = "REC1", r2 = "REC2", r3 = "REC3", r5 = "REC5", r10 = "REC10"))+
+        labs(y = "Glucose exchange (mmol/min/thigh lean mass)", x = "Time")+
+    annotate("text", x = Inf, y = Inf, label = "Uptake", hjust = 1.1, vjust = 2, size = 3, color = "black")+
+    annotate("text", x = Inf, y = -Inf, label = "Release", hjust = 1.1, vjust = -1, size = 3, color = "black")
+
+ggsave(here::here('data/dac/TINX_with_individual.png'), width = 150, height = 60, units = "mm")
+```
+
+```{r}
+df_tinx %>%
+    ggplot(aes(x = time))+
+    geom_path(data = mean_tinx,
+              aes(x = time,
+                  y = mean_glu_exchange,
+                  group = 1),
+              color = "red",
+              size = 1) +
+    geom_path(data = df_tinx,
+              aes(x = time,
+                  y = glu_exchange,
+                  group = id),
+              color = "gray",
+              size = 0.25) +
+    geom_errorbar(data = mean_tinx, 
+                  aes(x = time, 
+                      ymin = mean_glu_exchange, 
+                      ymax = mean_glu_exchange + se_glu_exchange), 
+                  width = 0,
+                  color = "black", 
+                  alpha = 0.5) +
+    geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.25)+
+        theme(
+            panel.background = element_rect(fill = "white"),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth = 0.1),
+            panel.grid.minor=element_blank(),
+            panel.grid.major = element_blank(),
+            plot.background = element_rect(fill = "white"),
+            axis.line = element_blank(),
+            axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+            axis.ticks = element_line(linewidth = 0.1),
+            axis.title = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.x = element_text(size = 6, family="Source Sans Pro"),
+            axis.title.y = element_text(size = 6, family="Source Sans Pro"),
+            text = element_text(size = 8, family="Source Sans Pro"),
+            legend.title = element_blank(),
+            legend.key = element_blank(),
+            strip.background = element_blank()
+        )+
+        #scale_x_discrete(labels = c(exh = "Exh.", r1 = "REC1", r2 = "REC2", r3 = "REC3", r5 = "REC5", r10 = "REC10"))+
+        labs(y = "Glucose exchange (mmol/min/thigh lean mass)", x = "Time")+
+    annotate("text", x = Inf, y = Inf, label = "Uptake", hjust = 1.1, vjust = 2, size = 3, color = "black")+
+    annotate("text", x = Inf, y = -Inf, label = "Release", hjust = 1.1, vjust = -1, size = 3, color = "black")
+
+ggsave(here::here('data/dac/TINX_with_individual.png'), width = 150, height = 60, units = "mm")
 ```
 
